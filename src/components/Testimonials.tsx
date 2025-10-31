@@ -26,7 +26,6 @@ const testimonials: Testimonial[] = [
 
 export const Testimonials = () => {
   const [current, setCurrent] = useState(0);
-  const primaryColor = "#34495e";
 
   // Cambio de testimonios cada 5s
   useEffect(() => {

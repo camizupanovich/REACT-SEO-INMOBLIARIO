@@ -1,7 +1,7 @@
 import { FaX } from "react-icons/fa6";
 import { PropertyDetail } from "./ProperyDetail";
 
-export const PropertyModal = ({ open, onClose, property }: any) => {
+export const PropertyModal = ({ onClose, property }: any) => {
   return (
     <div className={`modal-overlay active`}>
       <div className="modal">

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams} from "react-router-dom";
 import mapboxgl from "mapbox-gl";
 import { motion } from "framer-motion";
 import { ref as dbRef, push, update, get } from "firebase/database";
