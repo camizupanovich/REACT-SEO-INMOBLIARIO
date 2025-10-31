@@ -1,23 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams} from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import mapboxgl from "mapbox-gl";
 import { motion } from "framer-motion";
 import { ref as dbRef, push, update, get } from "firebase/database";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
-import { database, storage } from "../firebase"; // ajustá la ruta si hace falta
+import { database, storage } from "../firebase"; 
 import type { PropertyAdvanced, PropertyType, Tag } from "../../data/mock-properties-advanced";
 import "./PropertyForm.css";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
-/**
- * Nota:
- * - Para crear: ruta /admin/properties/new  (no viene :id)
- * - Para editar: ruta /admin/properties/:id
- *
- * Guardamos payload.id = Date.now() (numérico) para mantener tu tipo PropertyAdvanced,
- * y la propiedad en Realtime DB se crea/actualiza bajo la key generada por push/update.
- */
 
 const propertyTypes: PropertyType[] = ["depto", "ph", "casa", "lote", "campo", "comercial"];
 const tagsList: Tag[] = ["pileta", "balcon", "terraza", "luminoso", "garage", "jardin", "aire"];
@@ -54,12 +45,11 @@ export const PropertyForm: React.FC = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Mapbox refs
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
 
-  // load if editing
+  // Load property if editing
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -72,7 +62,6 @@ export const PropertyForm: React.FC = () => {
           return;
         }
         const data = snap.val();
-        // Normalizar datos
         setFormData({
           id: Number(data.id ?? Date.now()),
           titulo: data.titulo ?? "",
@@ -100,7 +89,7 @@ export const PropertyForm: React.FC = () => {
     })();
   }, [id]);
 
-  // Init / update map preview
+  // Map preview
   useEffect(() => {
     if (!mapContainer.current) return;
 
@@ -114,31 +103,21 @@ export const PropertyForm: React.FC = () => {
       mapRef.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
     }
 
-    // update marker
     if (markerRef.current) markerRef.current.remove();
     markerRef.current = new mapboxgl.Marker({ color: "#D2691E" })
       .setLngLat([formData.coords.lng, formData.coords.lat])
       .addTo(mapRef.current);
 
-    // fly
     try {
       mapRef.current.flyTo({ center: [formData.coords.lng, formData.coords.lat], essential: true, zoom: 13 });
-    } catch (err) {
-      // ignore small errors
-    }
-
-    // cleanup not destroying map to keep preview snappy
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch (err) {}
   }, [mapContainer.current, formData.coords.lat, formData.coords.lng]);
 
-  // Geocoding suggestions
+  // Geocoding
   const handleSearchLocation = async (q: string) => {
     setFormData((f) => ({ ...f, ubicacion: q }));
     setSuggestions([]);
-    if (q.length < 3) {
-      setSuggestions([]);
-      return;
-    }
+    if (q.length < 3) return;
     setSearching(true);
     setError(null);
     try {
@@ -166,7 +145,7 @@ export const PropertyForm: React.FC = () => {
     setSuggestions([]);
   };
 
-  // Generic form change
+  // Generic input
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target as any;
     const parsed = type === "checkbox" ? checked : (type === "number" ? (value === "" ? "" : Number(value)) : value);
@@ -177,7 +156,7 @@ export const PropertyForm: React.FC = () => {
     setFormData((prev) => ({ ...prev, tags: prev.tags.includes(t) ? prev.tags.filter(x => x !== t) : [...prev.tags, t] }));
   };
 
-  // images
+  // Images
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const files = e.target.files ? Array.from(e.target.files) : [];
@@ -186,23 +165,20 @@ export const PropertyForm: React.FC = () => {
       setError("No podés subir más de 7 imágenes en total.");
       return;
     }
-
     const over = files.find(f => f.size > 300 * 1024);
     if (over) {
       setError(`La imagen ${over.name} supera 300 KB. Optimizala antes de subir.`);
       return;
     }
-
     setImageFiles(files);
   };
 
-  // submit
+  // Submit
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError(null);
     setSuccessMsg(null);
 
-    // basic validation
     if (!formData.titulo || !formData.ubicacion || !formData.precioUSD) {
       setError("Completá título, ubicación y precio antes de guardar.");
       return;
@@ -210,26 +186,28 @@ export const PropertyForm: React.FC = () => {
 
     setSaving(true);
     try {
-      // upload new images
       const uploadedUrls = [...(formData.images || [])];
       for (const file of imageFiles) {
-        const key = `properties/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
-        const sRef = storageRef(storage, key);
-        await uploadBytes(sRef, file);
-        const url = await getDownloadURL(sRef);
-        uploadedUrls.push(url);
+        try {
+          const key = `properties/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+          const sRef = storageRef(storage, key);
+          await uploadBytes(sRef, file);
+          const url = await getDownloadURL(sRef);
+          uploadedUrls.push(url);
+        } catch (err) {
+          console.error("Error subiendo imagen:", file.name, err);
+        }
       }
 
       const payload = {
         ...formData,
-        images: uploadedUrls.slice(0, 7),
+        images: [...(formData.images || []), ...uploadedUrls].slice(0, 7),
         fechaPublicacion: formData.fechaPublicacion || new Date().toISOString(),
       };
 
       if (id) {
         await update(dbRef(database, `properties/${id}`), payload);
       } else {
-        // include numeric id for your model
         payload.id = Date.now();
         await push(dbRef(database, `properties`), payload);
       }
@@ -244,13 +222,10 @@ export const PropertyForm: React.FC = () => {
     }
   };
 
-  const handleCancel = () => {
-    navigate("/admin/properties");
-  };
+  const handleCancel = () => navigate("/admin/properties");
 
   return (
     <div className="property-form-page">
-
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card">
         <header className="card-header">
           <h2>{id ? "Editar propiedad" : "Crear nueva propiedad"}</h2>
