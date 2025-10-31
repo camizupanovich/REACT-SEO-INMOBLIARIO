@@ -102,7 +102,25 @@ export const PropertiesAdmin: React.FC = () => {
   if (error) return <div style={{ color: "red" }}>{error}</div>;
 
   return (
-    <div style={{ padding: "1rem" }}>
+  <div style={{ padding: "2rem", maxWidth: 1200, margin: "0 auto" }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+        }}
+      >
+        <h1 style={{ fontSize: "1.8rem", color: "#34495e" }}>
+          🏡 Administración de Propiedades
+        </h1>
+        <button
+          onClick={() => navigate("/admin/properties/new")}
+          style={btnPrimary}
+        >
+          + Nueva Propiedad
+        </button>
+      </header>
       <div style={{ marginBottom: "1rem" }}>
         <button
           onClick={() => setViewType(viewType === "grid" ? "list" : "grid")}
@@ -188,3 +206,12 @@ export const PropertiesAdmin: React.FC = () => {
 };
 
 export default PropertiesAdmin;
+const btnPrimary: React.CSSProperties = {
+  background: "#D2691E",
+  color: "#fff",
+  border: "none",
+  padding: "0.8rem 1.4rem",
+  borderRadius: 8,
+  cursor: "pointer",
+  fontWeight: 600,
+};
